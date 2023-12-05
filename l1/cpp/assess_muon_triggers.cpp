@@ -233,6 +233,7 @@ double globalTriggerProbabilityFullCorrelation(const std::vector<ModuleTrigger>&
 }
 
 int main(int argc, char* argv[]){
+	// l0 for pulses on different channels on same DOM for coincidence
 	double timeWindow=10; //ns
 	unsigned int moduleRequirement=1;
 	
