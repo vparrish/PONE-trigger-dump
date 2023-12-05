@@ -125,7 +125,7 @@ int level0(int argc, char* argv[]){
 		return 0;
 	
 	if(positionals.size()<2){
-		std::cerr << "No input files" << std::endl;
+		std::cerr << "No input files" << std::endl;geome
 		return 1;
 	}
 	std::vector<std::string> inputFiles(positionals.begin()+1,positionals.end());
@@ -133,6 +133,7 @@ int level0(int argc, char* argv[]){
 	unsigned int viableEvents=0;
 	unsigned int lostEvents=0;
 	double totalReadoutTime=0;
+	unsigned int minMultiplicity=1;
 	
 	I3::init_icetray_lib();
 	I3Tray tray;
