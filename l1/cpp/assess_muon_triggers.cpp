@@ -194,7 +194,7 @@ double totalReadoutTimeMcElroy(const std::vector<ModuleTrigger>& moduleTriggers)
 		auto timeRange=tMcElroyWindow(distance);
 		readoutTime+=2*(timeRange.second-timeRange.first);
 	}
-	return readoutTime;
+	return rFeadoutTime;
 }
 
 //computes the probability that this event would be able to trigger the detector globally, assuming

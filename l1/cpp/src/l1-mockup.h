@@ -9,5 +9,9 @@ struct ModuleTrigger {
     double time;
 };
 
+struct EventCluster {
+    ModuleKey module;
+    double time;
+}
 
 #endif // L1_MOCKUP_H
