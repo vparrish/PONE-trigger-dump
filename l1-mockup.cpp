@@ -64,7 +64,7 @@ double levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const
     //const variables 
     double  c = 0.299792458; //m/ns
     double n = 1.34; //index of refraction
-    double d_atten = 25; //i don't actually know what this is but it's close to 25m
+    double d_atten = 420; //i don't actually know what this is but it's close to 25m
     double theta_c = 40.5; //idk what it is but its like around 40 I think 
 
     //start the neighbor calculations 
