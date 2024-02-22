@@ -3,7 +3,7 @@
  * the p-one collaboration
  * 
  * @date Nov 29 2023
- * @author vparrish
+ * @author vparrish with contributions from jmgarriz
 */
 
 #include "src/l1-mockup.h"
@@ -39,7 +39,7 @@ else
 boost::shared_ptr<const I3Geometry> geometry;
 //this is where I need to implement the light cone algorithms
 //<moduletrigger> has modulekey, mult, and time 
-double levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const ModuleTrigger& pulse){
+std::vector levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const ModuleTrigger& pulse){
 
     //std::map<ModuleKey, std::vector<EventCluster> &eventCluster> l1_skimmedEventClusters;
     //define variables that we need for the comparison 
@@ -47,7 +47,6 @@ double levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const
     double t_initial; 
     double tmin; 
     double tmax;
-    double d_max; 
     
     //get distance between initial module and the potential neighbor  
 	auto geoIt1=geometry->omgeo.find(OMKey(l0_triggers_i.GetString(),l0_triggers_i.GetOM(),1));
@@ -64,45 +63,57 @@ double levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const
     //const variables 
     double  c = 0.299792458; //m/ns
     double n = 1.34; //index of refraction
-    double d_atten = 420; //i don't actually know what this is but it's close to 25m
+    double d_atten = 25; //i don't actually know what this is but it's close to 25m I think
     double theta_c = 40.5; //idk what it is but its like around 40 I think 
+    double d_max = 500; //m  
 
     //start the neighbor calculations 
-    //is d_max attenuation length? attenuation length is used in the formulas tho   
+    //should I implement a D_max in here yet? not sure what it would be but like if we don't we're going to grab time windows for every single dom right??
+    //or am I dumb  
 
     // lower limit
-    if (dist < 2*d_atten*sin(theta_c)){
-        tmin = 0;
-    }else {
-        double tmin_int = 1/c*sqrt(pow(dist, 2)- (2*d_atten*sin(theta_c)));
-        double tmin_large = (d_atten/c)*((1/n) + sqrt((pow(dist/d_atten,2))-pow(sin(theta_c), 2)) - n);
-        //determine if we're in the intermediate or large range- computer both eq34 and eq48 and use min of two
-        if(tmin_int < tmin_large){
-            tmin = tmin_int;
-        } else {
-            tmin = tmin_large;
-        }
-    }
-
-    //upper limit
-    //I actually don't know what this distance condition should be here??
-    if(dist < 2*d_atten*sin(theta_c)){
-        tmax = (n*dist)/c;
+    if (dist > d_max){
+        return 0;
     } else {
-        tmax = (d_atten/c)*(sqrt((pow(dist/d_atten,2))-pow(sin(theta_c), 2)) - (1/n) + n);
+        //lower limit
+        if (dist < 2*d_atten*sin(theta_c)){
+            tmin = 0;
+        }else if ((dist >= 2*d_atten*sin(theta_c)) && (dist <= d_max)) {
+            double tmin_int = 1/c*sqrt(pow(dist, 2)- (2*d_atten*sin(theta_c)));
+            double tmin_large = (d_atten/c)*((1/n) + sqrt((pow(dist/d_atten,2))-pow(sin(theta_c), 2)) - n);
+            //determine if we're in the intermediate or large range- computer both eq34 and eq48 and use min of two
+            if(tmin_int < tmin_large){
+                tmin = tmin_int;
+            } else {
+                tmin = tmin_large;
+            }
+        }
+
+        //upper limit
+        //I think this is the correct distance boundary? 
+        tmax = (n*dist)/c;
+        if (dist <= (tmax *c)/n ){
+            tmax = (n*dist)/c;
+        }
+        else if (dist < d_max){
+            tmax = (d_atten/c)*(sqrt((pow(dist/d_atten,2))-pow(sin(theta_c), 2)) - (1/n) + n);
+        }
+        //positive time window
+        std::vector <double> tw_p = {t_initial + tmin, t_initial + tmax};
+        //negative time window
+        std::vector <double> tw_n = {t_initial - tmin, t_initial - tmax}; 
+
+        //add the module and time window to a light cone reconstructed event class 
+        const std::vector<LCEvent>& l1_LCevent;
+        l1_LCevent.ModuleKey = geoIt2;
+        l1_LCevent.multiplicity = pulse.multiplicity;
+        l1_LCevent.time = pulse.time;
+        l1_LCevent.pos_TimeWindow =tw_p;
+        l1_LCevent.neg_TimeWindow = tw_n;
+        return l1_LCevent;
     }
-    
-    if(tmax!=0){
-        //add t_min and t_max to t_initial to get the time window
-        //return the time window for that module? 
-        //all these module triggers can then be added to a map of neighbors/loosely clustered events in the main part of the script.
-            //need to create event clusters in the main function as well and then just add to them
-    }
-
-
-    
-
-    const std::vector<ModuleTrigger>& l1_lightConeReconstructedEvents;{
+// this I don't rly understand 
+    /**const std::vector<ModuleTrigger>& l1_lightConeReconstructedEvents;{
 
         auto modulePosition=[&](ModuleKey m){
 		auto geoIt=geometry->omgeo.find(OMKey(m.GetString(),m.GetOM(),1));
@@ -114,12 +125,12 @@ double levelOneLightConeReconstruction(const ModuleTrigger& l0_triggers_i, const
 	};
         
     } return ModuleKey.push_back(geoIt);
-
+    **/
 }
 
 // Function to create event clusters within a time window and remove duplicates based on moduleID
-std::vector<std::vector<ModuleTrigger>> createEventClusters(const std::vector<ModuleTrigger>& l1_lightConeReconstructedEvents, double timeWindow) {
-    std::vector<std::vector<ModuleTrigger>> l1_skimmedEventClusters;
+std::vector<std::vector<LCEvent>> createEventClusters(const std::vector<LCEvent>& l1_lightConeReconstructedEvents, double timeWindow) {
+    std::vector<std::vector<LCEvent>> l1_skimmedEventClusters;
 
     // Iterate through sorted events to create clusters
     for (const auto& event : l1_lightConeReconstructedEvents) {
@@ -161,13 +172,17 @@ int main(int argc, char* argv[]){
     // time order the l0 triggers... for now this assumes trigger fixed length :/ yikes... a later issue... 
     timeOrderedL0Triggers(const std::vector<ModuleTrigger>& l0_triggers);
     // perform the light cone algorithm 
-    for(i = 0, i < = l0_triggers.length, i ++) {
+    for(i = 0, i < = timeOrderedL0Triggers.length, i ++) {
         //create an event cluster for each initial trigger 
-        for (int j = i + 1; j <= l0_triggers.length; j ++){
-            std::vector<ModuleTrigger> pulse = l0_triggers[j];
-            std::vector<ModuleTrigger> l1_reconstructedEvent = levelOneLightConeReconstruction(l0_triggers[i], pulse); 
+        //iterate thru all modules for every trigger not just other triggers?? but like we only care about things w/mult 2 or more triggers right?  
+        for (int j = i + 1; j <= timeOrderedL0Triggers.length; j ++){
+            std::vector<ModuleTrigger> pulse = timeOrderedL0Triggers[j];
+            std::vector<LCEvent> l1_lightConeReconstructedEvents; 
+            l1_lightConeReconstructedEvents.push_back(levelOneLightConeReconstruction(l0_triggers[i], pulse));
+
             //add the neighbors to the event cluster 
-            //also probably somewhere need to group by modules we're requesting ,,,,
+            //also probably somewhere need to group by modules we're requesting ,,,, >>do this in the cluster function 
+
         } 
     }
     
