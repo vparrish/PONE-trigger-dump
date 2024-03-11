@@ -9,6 +9,22 @@
 #include "src/l1-mockup.h"
 #include "src/mcl0retrival.cpp"
 
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+
+#include "cl_options.h"
+#include "l1-mockup.h"
+
+
+#include <icetray/I3Tray.h>
+#include <dataclasses/ModuleKey.h>
+#include <dataclasses/geometry/I3Geometry.h>
+#include <dataclasses/physics/I3RecoPulse.h>
+#include <dataclasses/physics/I3Particle.h>
 
 // time comparison of triggered modules
 bool compareTriggerTimes(const ModuleTrigger& a, const ModuleTrigger& b) {
