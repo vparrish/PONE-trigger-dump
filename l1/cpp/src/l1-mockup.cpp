@@ -20,38 +20,61 @@ void timeOrderedL0Triggers(const std::vector<ModuleTrigger>& l0_triggers){
     std::sort(orderedLevelZeroTriggers.begin(), orderedLevelZeroTriggers.end(), compareTriggerTimes);
 }
 
+double closestApproach(const )
+
 /** use light cone geometry and different signal track projections to select modules of interest in event
  * currently assuming fixed vector of events (obv in triggering, this will be a live stream)
  * the analogous documentation outlining this geometric light-cone calculation 
 */
 // make this a map of module keys to a vector 
 
-if(!geometry){
-if(frame->Has("I3Geometry"))
-    geometry=frame->Get<boost::shared_ptr<const I3Geometry>>("I3Geometry");
-else
-    return;
-}
-
 boost::shared_ptr<const I3Geometry> geometry;
 
-double levelOneLightConeReconstruction(const std::vector<ModuleTrigger>& l0_triggers){
+std::map<ModuleKey, std::vector<NeighborModule>> levelOneLightConeReconstruction(const std::vector<ModuleKey>& orderedLevelZeroTriggers){
 
-    std::map<ModuleKey, std::vector<EventCluster> &eventCluster> l1_skimmedEventClusters;
+    if(!geometry){
+    if(frame->Has("I3Geometry"))
+        geometry=frame->Get<boost::shared_ptr<const I3Geometry>>("I3Geometry");
+    else
+        return;
+    };
+// GETTING SEED MODULE INFORMATION //
+    // this gets the position info of the seed
+    auto modulePosition=[&](ModuleKey m){
+        // Do the geometry thing and get position of the seed
+        auto geoIt=geometry->omgeo.find(OMKey(m.GetString(),m.GetOM(),1));
+        if(geoIt==geometry->omgeo.end())
+            log_fatal_stream("Module " << m << " not in geometry?");
+            //throw std::runtime_error("Module not in geometry?");
+        return geoIt->second.position;
+    };
+    // this actually excutes that little function and gets position and triggered time of seed 
+    auto seedModule=orderedLevelZeroTriggers.front().module;
+	I3Position seedPos=modulePosition(seedModule);
+	double seedTime=orderedLevelZeroTriggers.front().time;
 
-    const std::vector<ModuleTrigger>& l1_lightConeReconstructedEvents;{
+// GETTING EVENT MODULE NEIGHBORS //
+    // initalize map
+    std::map<ModuleKey, std::vector<NeighborModule> eventMap;
+    // l1_neighborModuleRetrieve vector to store NeighborModule information
+    std::vector<NeighborModule> l1_neighborModuleRetrieve;
+    // something else to do the geometry thing with `seedPos` and `seedTime`
 
-        auto modulePosition=[&](ModuleKey m){
-		auto geoIt=geometry->omgeo.find(OMKey(m.GetString(),m.GetOM(),1));
-        // write something to get the time of the m 
-		if(geoIt==geometry->omgeo.end())
-			log_fatal_stream("Module " << m << " not in geometry?");
-// 			throw std::runtime_error("Module not in geometry?");
-		return geoIt->second.position;
-	};
+
+    // something else to get the detector geometry and backwards search for modules within the light cone
+    // pipe that into an eventVector called processModules (below)
+    for (const auto& processModule : processModules){
+        // Initiating NeighborModule structure
+        NeighborModule neighborModule{processModule, /*time value here*/};
         
-    } return ModuleKey.push_back(geoIt);
+        // Populate l1_neighborModuleRetrieve vector with NeighborModule structure 
+        l1_neighborModuleRetrieve.push_back(neighborModule);
+        
+    }
 
+    // Populate the map with 
+    eventMap[processModule].push_back(neighborModule);
+    return eventMap;
 }
 
 // Function to create event clusters within a time window and remove duplicates based on moduleID

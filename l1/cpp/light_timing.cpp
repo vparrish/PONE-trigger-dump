@@ -223,7 +223,7 @@ int main(int argc, char* argv[]){
 // 			std::cout << "  Light time pc2 to p2: " << (p2-pc2).magnitude()/(c/n) << std::endl;
 		}
 	}
-	std::cout << "Observed time difference range: [" << tMin << ", " << tMax << ']' << std::endl;
+	std::cout << "Observed time difference range: [" <<  << ", " << tMax << ']' << std::endl;
 	
 	double sc=sin(theta_c);
 	
