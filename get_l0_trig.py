@@ -17,6 +17,7 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
+from collections import defaultdict
 
 
 
@@ -24,9 +25,9 @@ import numpy as np
 parser = argparse.ArgumentParser(
     description="collects all the l0 triggers and outputs to some format not yet determined :)")
 
-parser.add_argument("-i", "--infile", default="./test_input.i3",
+parser.add_argument("-i", "--infile", default="/mnt/research/IceCube/PONE/jp_pone_sim/pmtsim/GenerateSingleMuons_39_pmtsim.i3.zst",
                     help="input .gz files")
-parser.add_argument("-o", "--outfile", default="./test_output.i3",
+parser.add_argument("-o", "--outfile", default="./out.i3",
                     help="Write output to OUTFILE (.i3{.gz} format)")
 parser.add_argument("-w", "--window", default=5,#ns
                     help="length of coincidence time window")
@@ -35,12 +36,14 @@ parser.add_argument("-m", "--moduleReq", default=2,
 
 args = parser.parse_args()
 
-#some fun lil classes we'll need ? 
-class ModuleTrigger:
-    def __init__(self, module, multiplicity, time):
-        self.module = module
-        self.multiplicity = multiplicity
-        self.time = time
+#not sure if this is the best way to do this
+#class ModuleTrigger:
+#    def __init__(self, module, multiplicity, time):
+#        self.module = module
+#        self.multiplicity = multiplicity
+#        self.time = time
+#idk if this is right either tbh
+ModuleTrigger = defaultdict(lambda:defaultdict(list))
 
 
 
@@ -48,15 +51,21 @@ class ModuleTrigger:
 
 def findModuleMultiplicity(modules , timeWindow):
     triggers = []
-    for omkey,pmts, in modules:
+    for omkey in modules:
         maxMult = 0
+        pmt = modules[omkey][0]
+        print(pmt)
+        pmts = modules[omkey]
+        print(pmts)
+        #I think I'm misunderstanding what the modules map contains in it?? 
         for pmt, pulses, in pmts:
             if(pulses.next().GetCharge()<0.25):
                 pulses.advance()
                 if(pulses.empty()):
                     pmts.erase(pmt)
         #this needs to be a specific structure 
-        trigger = ModuleTrigger(omkey, 0, 0)
+        trigger = ModuleTrigger[("omkey", 0)].append(omkey)
+        print(trigger)
         while not pmts.empty():
             startTime = np.inf
             for pmt, pulses in pmts:
@@ -90,31 +99,36 @@ def findModuleMultiplicity(modules , timeWindow):
 def getData():
     frames = []
     infiles = sorted(glob(args.infile))
-    print("i have the infiles")
     for file in infiles:
         print(file)
         infile = dataio.I3File(file)
-        for i in range(0,10):
+        while infile.more():
             try:
-                print("correct")
-                print(infile.pop_DAQ())
-                frames.append(infile.pop_DAQ()[i])
+                frames.append(infile.pop_daq())
             except:
-                #print("oops continuing")
                 continue
         infile.close()
-    print(frames)
+    print(len(frames))
     #test just with the find multiplicity module 
+    modules = defaultdict(lambda: defaultdict(list))
     for frame in frames:
         pulsemap = frame['PMTResponse_nonoise']
-        modules = []
+        
         pulseQueue = []
-        for omkey, p in pulsemap:
-            print("doing the thing")
-            key = omkey(p[0].GetString(), p[0].GetOM())
-            modules[key].update({p[0].GetPMT(): pulseQueue(p[1])})
-        print(key)
+        i = 0
 
+        for omkey, p in pulsemap:
+            #print(omkey)
+            #print(p)
+            modules[omkey] = [omkey[2], {p[0], p[-1]}]
+            #print(omkey[2])
+    #print(modules)
+
+    #now that we have some kind of data structure for the modules, lets implement the one function
+    #for i in modules:
+     #   print(modules[i][0])
+        #print(j)
+    triggers = findModuleMultiplicity(modules, 10)
 
 
 
