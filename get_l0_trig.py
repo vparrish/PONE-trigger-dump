@@ -18,6 +18,7 @@ import argparse
 import os
 import numpy as np
 from collections import defaultdict
+from dataclasses import dataclass
 
 
 
@@ -37,36 +38,41 @@ parser.add_argument("-m", "--moduleReq", default=2,
 args = parser.parse_args()
 
 #not sure if this is the best way to do this
-#class ModuleTrigger:
-#    def __init__(self, module, multiplicity, time):
-#        self.module = module
-#        self.multiplicity = multiplicity
-#        self.time = time
-#idk if this is right either tbh
-ModuleTrigger = defaultdict(lambda:defaultdict(list))
+@dataclass
+class ModuleTrigger:
+    def __init__(self, module, multiplicity, time):
+        self.module = module
+        self.multiplicity = multiplicity
+        self.time = time
 
+
+#def create_pulses():
 
 
 #make! some! functions! 
 
 def findModuleMultiplicity(modules , timeWindow):
     triggers = []
-    for omkey in modules:
+    for mk, pmts in modules.items():
         maxMult = 0
-        pmt = modules[omkey][0]
-        print(pmt)
-        pmts = modules[omkey]
-        print(pmts)
+        #print(value[:][0])
+        #print(pmt)
         #I think I'm misunderstanding what the modules map contains in it?? 
+        ##this is pulsequeue??? go look at assessmuons to verify 
         for pmt, pulses, in pmts:
-            if(pulses.next().GetCharge()<0.25):
+            i = 0
+            print(pmt)
+            print(type(pulses[0]))
+            if(pulses[0].charge <0.25):
                 pulses.advance()
-                if(pulses.empty()):
+                #print(pulses[i]) #this charge cutoff stands in for the firmware trigger
+                i += 1 
+                if(len(pulses) == 0):
                     pmts.erase(pmt)
         #this needs to be a specific structure 
-        trigger = ModuleTrigger[("omkey", 0)].append(omkey)
-        print(trigger)
-        while not pmts.empty():
+        trigger = ModuleTrigger(mk, 0 ,0)
+        #print(trigger.time)
+        while len(pmts) != 0:
             startTime = np.inf
             for pmt, pulses in pmts:
                 if pulses.next().GetTime() < startTime:
@@ -85,6 +91,7 @@ def findModuleMultiplicity(modules , timeWindow):
                 trigger.multiplicity = mult
                 trigger.time = startTime
             pmts[leadTube].advance()
+            #this is the part where you erase and instead need to concatenate? 
             if pmts[leadTube].empty():
                 pmts.erase(leadTube)
 
@@ -110,18 +117,26 @@ def getData():
         infile.close()
     print(len(frames))
     #test just with the find multiplicity module 
-    modules = defaultdict(lambda: defaultdict(list))
+    #i think we don't want to use a dictionary actually ????
+    modules = defaultdict(list)
+    #modules = []
     for frame in frames:
         pulsemap = frame['PMTResponse_nonoise']
         
+        #create pulsequeue here as a function
         pulseQueue = []
-        i = 0
+        i = 0      
 
         for omkey, p in pulsemap:
-            #print(omkey)
-            #print(p)
-            modules[omkey] = [omkey[2], {p[0], p[-1]}]
-            #print(omkey[2])
+            #if we use a dictionary
+            #modules[omkey] = ([omkey[2], p])
+            key = (omkey[0], omkey[1])
+            modules[key].append((omkey[2], p))
+            #modules.update({key: [omkey[2], [p[0][:]]]})
+            #if we use a list of lists for modules
+            #modules.append([omkey, p])
+            #print(p[0].time)
+            #i += 1 
     #print(modules)
 
     #now that we have some kind of data structure for the modules, lets implement the one function
