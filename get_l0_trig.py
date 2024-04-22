@@ -47,6 +47,25 @@ class ModuleTrigger:
 
 
 #def create_pulses():
+    
+class PulseQueue:
+    def __init__(self, pulses):
+        self.it = iter(pulses)
+        self.end = len(pulses)
+        self.pulses = pulses
+
+    def empty(self):
+        return self.it == self.end
+
+    def next_pulse(self):
+        return next(self.it)
+
+    def advance(self):
+        while self.it != self.end:
+            self.it += 1 
+            pulse = next(self.it)
+            if self.it != self.end and pulse.charge >= 0.25:
+                break
 
 
 #make! some! functions! 
@@ -60,40 +79,56 @@ def findModuleMultiplicity(modules , timeWindow):
         #I think I'm misunderstanding what the modules map contains in it?? 
         ##this is pulsequeue??? go look at assessmuons to verify 
         for pmt, pulses, in pmts:
-            i = 0
-            print(pmt)
-            print(type(pulses[0]))
-            if(pulses[0].charge <0.25):
+            #print(pmt)
+            #print(pulses.pulses[0].charge)
+            if(pulses.pulses[0].charge <0.25):
                 pulses.advance()
                 #print(pulses[i]) #this charge cutoff stands in for the firmware trigger
-                i += 1 
                 if(len(pulses) == 0):
-                    pmts.erase(pmt)
+                    #idk if erase will work
+                    print("i am erasing")
+                    pmts.remove(pmt)
         #this needs to be a specific structure 
         trigger = ModuleTrigger(mk, 0 ,0)
-        #print(trigger.time)
-        while len(pmts) != 0:
+        
+        
+        #while len(pmts) != 0:
+        for i in range(len(pmts)):
             startTime = np.inf
             for pmt, pulses in pmts:
-                if pulses.next().GetTime() < startTime:
-                    leadTube = pmt
-                    startTime = pulses.next().GetTime()
-
+                #print(pulses[0])
+                    if pulses.pulses[0].time < startTime:
+                    #print(i)
+                        leadTube = pmt
+                #print(leadTube)
+                    #print("i am here")
+                        startTime = pulses.pulses[0].time
             mult = 0
             for pmt, pulses in pmts:
-                if pulses.next().GetTime() < startTime + timeWindow:
-                    mult += 1
+                #print(pulses)
+                #print(pulses[0])
+                if pulses.pulses[0].time < startTime + timeWindow:
+                    #print(startTime+timeWindow)
+                    #print("boooo")
+                    mult = mult+ 1
+                #print(mult)
+                #print(startTime)
                 if pmt==leadTube:
-                    assert pulses.next().GetTime()<startTime+timeWindow
+                    print(pulses.pulses[0].time)
+                    print(startTime+timeWindow)
+                    print("divide")
+                    assert pulses.pulses[0].time<startTime+timeWindow
                     assert mult>0
             
             if mult > trigger.multiplicity:
                 trigger.multiplicity = mult
                 trigger.time = startTime
-            pmts[leadTube].advance()
+            
+            #I am lowkey stuck right here bc idk exactly what this is doing or how to implement in python
+            #pmts[leadTube]
             #this is the part where you erase and instead need to concatenate? 
-            if pmts[leadTube].empty():
-                pmts.erase(leadTube)
+            #if len(pmts[leadTube]) == 0:
+                #pmts.remove()
 
         if trigger.multiplicity:
             triggers.append(trigger)
@@ -131,12 +166,9 @@ def getData():
             #if we use a dictionary
             #modules[omkey] = ([omkey[2], p])
             key = (omkey[0], omkey[1])
-            modules[key].append((omkey[2], p))
-            #modules.update({key: [omkey[2], [p[0][:]]]})
-            #if we use a list of lists for modules
-            #modules.append([omkey, p])
-            #print(p[0].time)
-            #i += 1 
+            temp = PulseQueue(p)
+            #so now the pulses are a PulseQueue object
+            modules[key].append((omkey[2], temp))
     #print(modules)
 
     #now that we have some kind of data structure for the modules, lets implement the one function
