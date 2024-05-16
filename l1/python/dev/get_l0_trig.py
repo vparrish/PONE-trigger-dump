@@ -18,6 +18,8 @@ import pandas as pd
 import argparse
 import os
 import numpy as np
+from collections import defaultdict
+from dataclasses import dataclass
 
 
 
@@ -25,9 +27,9 @@ import numpy as np
 parser = argparse.ArgumentParser(
     description="collects all the l0 triggers and outputs to some format not yet determined :)")
 
-parser.add_argument("-i", "--infile", default="./test_input.i3",
+parser.add_argument("-i", "--infile", default="/mnt/research/IceCube/PONE/jp_pone_sim/pmtsim/GenerateSingleMuons_39_pmtsim.i3.zst",
                     help="input .gz files")
-parser.add_argument("-o", "--outfile", default="./test_output.i3",
+parser.add_argument("-o", "--outfile", default="./out.i3",
                     help="Write output to OUTFILE (.i3{.gz} format)")
 parser.add_argument("-w", "--window", default=5,#ns
                     help="length of coincidence time window")
@@ -36,7 +38,8 @@ parser.add_argument("-m", "--moduleReq", default=2,
 
 args = parser.parse_args()
 
-#some fun lil classes we'll need ? 
+#not sure if this is the best way to do this
+@dataclass
 class ModuleTrigger:
     def __init__(self, module, multiplicity, time):
         self.module = module
@@ -44,41 +47,89 @@ class ModuleTrigger:
         self.time = time
 
 
+#def create_pulses():
+    
+class PulseQueue:
+    def __init__(self, pulses):
+        self.it = iter(pulses)
+        self.end = len(pulses)
+        self.pulses = pulses
+
+    def empty(self):
+        return self.it == self.end
+
+    def next_pulse(self):
+        return next(self.it)
+
+    def advance(self):
+        while self.it != self.end:
+            self.it += 1 
+            pulse = next(self.it)
+            if self.it != self.end and pulse.charge >= 0.25:
+                break
+
 
 #make! some! functions! 
 
 def findModuleMultiplicity(modules , timeWindow):
     triggers = []
-    for omkey,pmts, in modules:
+    for mk, pmts in modules.items():
         maxMult = 0
+        #print(value[:][0])
+        #print(pmt)
+        #I think I'm misunderstanding what the modules map contains in it?? 
+        ##this is pulsequeue??? go look at assessmuons to verify 
         for pmt, pulses, in pmts:
-            if(pulses.next().GetCharge()<0.25):
+            #print(pmt)
+            #print(pulses.pulses[0].charge)
+            if(pulses.pulses[0].charge <0.25):
                 pulses.advance()
-                if(pulses.empty()):
-                    pmts.erase(pmt)
+                #print(pulses[i]) #this charge cutoff stands in for the firmware trigger
+                if(len(pulses) == 0):
+                    #idk if erase will work
+                    print("i am erasing")
+                    pmts.remove(pmt)
         #this needs to be a specific structure 
-        trigger = ModuleTrigger(omkey, 0, 0)
-        while not pmts.empty():
+        trigger = ModuleTrigger(mk, 0 ,0)
+        
+        
+        #while len(pmts) != 0:
+        for i in range(len(pmts)):
             startTime = np.inf
             for pmt, pulses in pmts:
-                if pulses.next().GetTime() < startTime:
-                    leadTube = pmt
-                    startTime = pulses.next().GetTime()
-
+                #print(pulses[0])
+                    if pulses.pulses[0].time < startTime:
+                    #print(i)
+                        leadTube = pmt
+                #print(leadTube)
+                    #print("i am here")
+                        startTime = pulses.pulses[0].time
             mult = 0
             for pmt, pulses in pmts:
-                if pulses.next().GetTime() < startTime + timeWindow:
-                    mult += 1
+                #print(pulses)
+                #print(pulses[0])
+                if pulses.pulses[0].time < startTime + timeWindow:
+                    #print(startTime+timeWindow)
+                    #print("boooo")
+                    mult = mult+ 1
+                #print(mult)
+                #print(startTime)
                 if pmt==leadTube:
-                    assert pulses.next().GetTime()<startTime+timeWindow
+                    print(pulses.pulses[0].time)
+                    print(startTime+timeWindow)
+                    print("divide")
+                    assert pulses.pulses[0].time<startTime+timeWindow
                     assert mult>0
             
             if mult > trigger.multiplicity:
                 trigger.multiplicity = mult
                 trigger.time = startTime
-            pmts[leadTube].advance()
-            if pmts[leadTube].empty():
-                pmts.erase(leadTube)
+            
+            #I am lowkey stuck right here bc idk exactly what this is doing or how to implement in python
+            #pmts[leadTube]
+            #this is the part where you erase and instead need to concatenate? 
+            #if len(pmts[leadTube]) == 0:
+                #pmts.remove()
 
         if trigger.multiplicity:
             triggers.append(trigger)
@@ -91,31 +142,41 @@ def findModuleMultiplicity(modules , timeWindow):
 def getData():
     frames = []
     infiles = sorted(glob(args.infile))
-    print("i have the infiles")
     for file in infiles:
         print(file)
         infile = dataio.I3File(file)
-        for i in range(0,10):
+        while infile.more():
             try:
-                print("correct")
-                print(infile.pop_DAQ())
-                frames.append(infile.pop_DAQ()[i])
+                frames.append(infile.pop_daq())
             except:
-                #print("oops continuing")
                 continue
         infile.close()
-    print(frames)
+    print(len(frames))
     #test just with the find multiplicity module 
+    #i think we don't want to use a dictionary actually ????
+    modules = defaultdict(list)
+    #modules = []
     for frame in frames:
         pulsemap = frame['PMTResponse_nonoise']
-        modules = []
+        
+        #create pulsequeue here as a function
         pulseQueue = []
-        for omkey, p in pulsemap:
-            print("doing the thing")
-            key = omkey(p[0].GetString(), p[0].GetOM())
-            modules[key].update({p[0].GetPMT(): pulseQueue(p[1])})
-        print(key)
+        i = 0      
 
+        for omkey, p in pulsemap:
+            #if we use a dictionary
+            #modules[omkey] = ([omkey[2], p])
+            key = (omkey[0], omkey[1])
+            temp = PulseQueue(p)
+            #so now the pulses are a PulseQueue object
+            modules[key].append((omkey[2], temp))
+    #print(modules)
+
+    #now that we have some kind of data structure for the modules, lets implement the one function
+    #for i in modules:
+     #   print(modules[i][0])
+        #print(j)
+    triggers = findModuleMultiplicity(modules, 10)
 
 
 

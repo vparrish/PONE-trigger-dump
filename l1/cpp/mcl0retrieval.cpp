@@ -70,7 +70,7 @@ std::vector<ModuleTrigger> findModuleMultiplicities(std::map<ModuleKey, std::map
 				if(pulses.next().GetTime()<startTime+timeWindow){
 					//std::cout << "      Pulse at " << pulses.next().GetTime() << " on PMT " << pmt << " is in\n";
 					mult++;
-				}
+				};
 				if(pmt==leadTube){
 					assert(pulses.next().GetTime()<startTime+timeWindow);
 					assert(mult>0);
