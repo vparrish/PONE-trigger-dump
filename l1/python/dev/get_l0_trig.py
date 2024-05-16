@@ -1,3 +1,4 @@
+#/usr/local/bin
 '''
 date: 6 March 2024
 author: jmgarriz
