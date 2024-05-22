@@ -56,15 +56,15 @@ class PulseQueue:
     def empty(self):
         return self.index >= len(self.pulses)
     
-    def next(self):
-        if self.empty():
-            raise StopIteration("No more pulses")
+    def next_pulse(self):
+        #if self.empty():
+        #    raise StopIteration("No more pulses")
         return self.pulses[self.index]
     
     def advance(self):
         while self.index < len(self.pulses):
             self.index += 1
-            if self.index < len(self.pulses) and self.pulses[self.index].get_charge() >= 0.25:
+            if self.index != len(self.pulses) and self.pulses[self.index].get_charge() >= 0.25:
                 break        
 
 """    
@@ -92,61 +92,60 @@ class PulseQueue:
 
 #make! some! functions! 
 
-def findModuleMultiplicity(modules , timeWindow):
+def findModuleMultiplicity(modules , timeWindow, req_mult):
     triggers = []
     for mk, pmts in modules.items():
-        maxMult = 0
-        #print(value[:][0])
-        #print(pmt) 
+        maxMult = 0 
+        #this for loop gets rid of pulses with charges that are less than 0.25/too small 
         for pmt, pulses, in pmts:
-            #print(pmts)
-            #print(pulses.pulses[0].charge)
-            if(pulses.pulses[0].charge <0.25):
-                print("boo")
-                pulses.advance()
-                #print(pulses[i]) #this charge cutoff stands in for the firmware trigger
-                if(len(pulses) == 0):
-                    print("i am erasing")
+            #pmt is the pmt, pulses is a pulsequeue object
+            #for each pulse in the pulsequeue object
+            for p in pulses.pulses:
+                
+                if(p.charge <0.25):
+                    print("boo charge too small, removing pulse")
+                    pulses.pulses.remove(p)
+                #i am not sure if this works but it doesn't actually get to this loop rn
+                if(len(pulses.pulses) == 0):
+                    #print("i am erasing")
                     pmts.remove(pmt)
-        #this needs to be a specific structure 
-        trigger = ModuleTrigger(mk, 0 ,0)
+                    print("i have removed the pmt, all pulses too small")
         
-        while len(pmts) != 0:
+        trigger = ModuleTrigger(mk, 0 ,0)
+        i = 0
+        #while len(pmts) != 0:
         #for i in range(len(pmts)):
-            startTime = np.inf
-            for pmt, pulses in pmts:
-                    if pulses.pulses[0].time < startTime:
-                        leadTube = pmt
-                        #print(type(leadTube))
-                    #print("i am here")
-                        startTime = pulses.pulses[0].time
-            mult = 0
-            for pmt, pulses in pmts:
-                if pulses.pulses[0].time < startTime + timeWindow:
-                    mult = mult+ 1
-                #print(mult)
-                #print(pmt)
-                if pmt==leadTube:
-                    #print(pulses.pulses[0].time)
-                    #print(startTime+timeWindow)
-                    #print("divide")
-                    assert pulses.pulses[0].time<startTime+timeWindow
-                    assert mult>0
-            
-            if mult > trigger.multiplicity:
-                trigger.multiplicity = mult
-                trigger.time = startTime
-            
-            #I am lowkey stuck right here bc idk exactly what this is doing or how to implement in python
-            print(pmts[leadTube][1])
-            pmts[leadTube][1].advance()
-            #this is the part where you erase and instead need to concatenate? 
-            if pmts[leadTube][1].empty():
-                pmts.pop(leadTube)
-                print("I have removed")
+        startTime = np.inf
+            #print(pmts)
+        mult = 0
+        for pmt, pulses in pmts:
+            for p in pulses.pulses: 
+                if p.time < startTime:
+                    leadTube = pmt
+                    startTime = p.time
+                    #print("leadtube is "+str(leadTube))
+                    #print("starttime is now "+str(startTime))
+                    if p.time < startTime + timeWindow:
+                        mult = mult+ 1
 
+                    if pmt==leadTube:
+                        assert p.time<startTime+timeWindow
+                        assert mult>0
+        #the way that assess_muon_triggers.cpp is set up rn it only reports the highest mult trigger not all triggers...
+        #want to report all here so for all pmts we're just getting the multiplicities and the start times
+        if mult > trigger.multiplicity:
+            trigger.multiplicity = mult
+            trigger.time = startTime
         if trigger.multiplicity:
+            #print(trigger.multiplicity)
             triggers.append(trigger)
+
+    print(len(triggers))
+    #removes triggers with multiplicity < 2
+    for trig in triggers:
+        if trig.multiplicity < req_mult:
+            triggers.remove(trig)
+    print(len(triggers))
     return triggers  
         
 
@@ -171,16 +170,14 @@ def getData():
     modules = defaultdict(list)
     #modules = []
     for frame in frames:
+        #not sure if I should use PMTResponse with or without noise...without noise gives an assertion error
+        #probably related to negative times
         pulsemap = frame['PMTResponse_nonoise']
-        
-        #create pulsequeue here as a function   
-
         for omkey, p in pulsemap:
-            #if we use a dictionary
-            #modules[omkey] = ([omkey[2], p])
+            #create a dictionary with (string, om) as keys and [pmt, pulses] as items
             key = (omkey[0], omkey[1])
             temp = PulseQueue(p)
-            #so now the pulses are a PulseQueue object
+            #so now the pulses are a PulseQueue object         
             modules[key].append((omkey[2], temp))
     #print(modules)
 
@@ -188,7 +185,7 @@ def getData():
     #for i in modules:
      #   print(modules[i][0])
         #print(j)
-    triggers = findModuleMultiplicity(modules, 10)
+    triggers = findModuleMultiplicity(modules, 10, 2)
 
 
 
