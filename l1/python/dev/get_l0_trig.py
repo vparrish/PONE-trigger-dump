@@ -46,8 +46,8 @@ class ModuleTrigger:
         self.multiplicity = multiplicity
         self.time = time
 
-
-#def create_pulses():
+"""
+this pulseQueue class doesn't actually need to be here
 class PulseQueue:
     def __init__(self, pulses):
         self.pulses = pulses
@@ -66,28 +66,6 @@ class PulseQueue:
             self.index += 1
             if self.index != len(self.pulses) and self.pulses[self.index].get_charge() >= 0.25:
                 break        
-
-"""    
-class PulseQueue:
-    def __init__(self, pulses):
-        self.it = iter(pulses)
-        self.end = len(pulses)
-        self.pulses = pulses
-
-    def empty(self):
-        return self.it == self.end
-
-    def next_pulse(self):
-        return next(self.it)
-    
-    #this function is buggy and does not work properly
-    def advance(self):
-        while self.it != self.end:
-            #self.it += 1
-            pulse =self.pulses[i]
-            print(pulse)
-            if i != self.end and pulse.charge >= 0.25:
-                break
 """
 
 #make! some! functions! 
@@ -95,56 +73,56 @@ class PulseQueue:
 def findModuleMultiplicity(modules , timeWindow, req_mult):
     triggers = []
     for mk, pmts in modules.items():
-        maxMult = 0 
+        maxMult = 0
+        #print("module key is "+str(mk))
+        #print("pmts is "+str(pmts))
+        
         #this for loop gets rid of pulses with charges that are less than 0.25/too small 
         for pmt, pulses, in pmts:
-            #pmt is the pmt, pulses is a pulsequeue object
-            #for each pulse in the pulsequeue object
-            for p in pulses.pulses:
-                
+            #pmt is the pmt, pulses is a pulsequeue list of I3recopulses
+            #this loop gets rid of pulses that are too small- unsure if it works rn and this is something to look at later
+            for p in pulses:
                 if(p.charge <0.25):
                     print("boo charge too small, removing pulse")
                     pulses.pulses.remove(p)
                 #i am not sure if this works but it doesn't actually get to this loop rn
-                if(len(pulses.pulses) == 0):
-                    #print("i am erasing")
+                if(len(pulses) == 0):
                     pmts.remove(pmt)
                     print("i have removed the pmt, all pulses too small")
         
         trigger = ModuleTrigger(mk, 0 ,0)
-        i = 0
-        #while len(pmts) != 0:
-        #for i in range(len(pmts)):
         startTime = np.inf
-            #print(pmts)
         mult = 0
+            #print(pmts)
+        #goes thru each pulse and determines if it's the leadtube (has the earliest starttime)
         for pmt, pulses in pmts:
-            for p in pulses.pulses: 
+            #print(pulses)
+            
+            for p in pulses: 
                 if p.time < startTime:
                     leadTube = pmt
-                    startTime = p.time
-                    #print("leadtube is "+str(leadTube))
-                    #print("starttime is now "+str(startTime))
-                    if p.time < startTime + timeWindow:
-                        mult = mult+ 1
+                    startTime = p.time 
+                #print("pulse time is "+str(p.time))
+                if p.time < startTime + timeWindow:
+                    mult = mult+ 1
 
-                    if pmt==leadTube:
-                        assert p.time<startTime+timeWindow
-                        assert mult>0
+                if pmt==leadTube:
+                    assert p.time<startTime+timeWindow
+                    assert mult>0
+                #print("leadtube is "+str(leadTube))
+                #print("starttime is now "+str(startTime))
+            #print("multiplicity = "+str(mult))
         #the way that assess_muon_triggers.cpp is set up rn it only reports the highest mult trigger not all triggers...
         #want to report all here so for all pmts we're just getting the multiplicities and the start times
         if mult > trigger.multiplicity:
             trigger.multiplicity = mult
+            #print("multiplicity = "+str(trigger.multiplicity))
             trigger.time = startTime
-        if trigger.multiplicity:
+            #print("multiplicity = "+str(trigger.time))
+        if trigger.multiplicity >= req_mult:
             #print(trigger.multiplicity)
             triggers.append(trigger)
 
-    print(len(triggers))
-    #removes triggers with multiplicity < 2
-    for trig in triggers:
-        if trig.multiplicity < req_mult:
-            triggers.remove(trig)
     print(len(triggers))
     return triggers  
         
@@ -154,31 +132,36 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
 #this will include the above functions 
 def getData():
     frames = []
+    i = 0
     infiles = sorted(glob(args.infile))
     for file in infiles:
         print(file)
         infile = dataio.I3File(file)
+        for i in range(0, 1):
+            frames.append(infile.pop_daq())
+        i += 1
+        """
         while infile.more():
+            #for i in range(0,1):
             try:
-                frames.append(infile.pop_daq())
-            except:
+                for i in range(0,1):
+                    frames.append(infile.pop_daq())
+                i +=1
+            except:                    
                 continue
+        """
+            #i += 1
         infile.close()
     print(len(frames))
-    #test just with the find multiplicity module 
-    #i think we don't want to use a dictionary actually ????
+
     modules = defaultdict(list)
     #modules = []
     for frame in frames:
-        #not sure if I should use PMTResponse with or without noise...without noise gives an assertion error
-        #probably related to negative times
         pulsemap = frame['PMTResponse_nonoise']
         for omkey, p in pulsemap:
             #create a dictionary with (string, om) as keys and [pmt, pulses] as items
-            key = (omkey[0], omkey[1])
-            temp = PulseQueue(p)
-            #so now the pulses are a PulseQueue object         
-            modules[key].append((omkey[2], temp))
+            key = (omkey[0], omkey[1])     
+            modules[key].append((omkey[2], p))
     #print(modules)
 
     #now that we have some kind of data structure for the modules, lets implement the one function
@@ -186,6 +169,11 @@ def getData():
      #   print(modules[i][0])
         #print(j)
     triggers = findModuleMultiplicity(modules, 10, 2)
+    for i in range(len(triggers)):
+        print("multiplicity= "+str(triggers[i].multiplicity))
+        print("module= "+str(triggers[i].module))
+        print("time= "+str(triggers[i].time))
+        print("next")
 
 
 
