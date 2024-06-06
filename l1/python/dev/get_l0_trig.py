@@ -31,7 +31,7 @@ parser.add_argument("-i", "--infile", default="/mnt/research/IceCube/PONE/jp_pon
                     help="input .gz files")
 parser.add_argument("-o", "--outfile", default="./out.i3",
                     help="Write output to OUTFILE (.i3{.gz} format)")
-parser.add_argument("-w", "--window", default=5,#ns
+parser.add_argument("-w", "--window", default=10,#ns
                     help="length of coincidence time window")
 parser.add_argument("-m", "--moduleReq", default=2,
                     help="Minimum number of modules which must have PEs for an event to be considered")
@@ -86,7 +86,7 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
                 for p in pulses:
                     if(p.charge <0.25):
                         print("boo charge too small, removing pulse")
-                        pulses.pulses.remove(p)
+                        pulses.remove(p)
                     #i am not sure if this works but it doesn't actually get to this loop rn
                     if(len(pulses) == 0):
                         pmts.remove(pmt)
@@ -99,21 +99,20 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
             #goes thru each pulse and determines if it's the leadtube (has the earliest starttime)
             for pmt, pulses in pmts:
                 #print(pulses)
-                
                 for p in pulses: 
                     if p.time < startTime:
                         leadTube = pmt
                         startTime = p.time 
-                    print("pulse time is "+str(p.time))
-
+                    #print("pulse time is "+str(p.time))
+                    print("leadtube is "+str(leadTube))
+                    print("starttime is now "+str(startTime))
+            for pmt, pulses in pmts:
+                #print(pulses)
+                for p in pulses:
                     if p.time < startTime + timeWindow:
                         mult = mult+ 1
 
-                    if pmt==leadTube:
-                        assert p.time<startTime+timeWindow
-                        assert mult>0
-                    #print("leadtube is "+str(leadTube))
-                    #print("starttime is now "+str(startTime))
+                    
                 #print("multiplicity = "+str(mult))
             #the way that assess_muon_triggers.cpp is set up rn it only reports the highest mult trigger not all triggers...
             #want to report all here so for all pmts we're just getting the multiplicities and the start times
@@ -128,13 +127,31 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
         triggers_all_frames.append(triggers)
         print("new frame")
         
-    print(len(triggers_all_frames))
+    #print(len(triggers_all_frames))
     return triggers_all_frames  
-        
 
+"""
+#i don;t know if this works
+def time_order(triggers):
+    for frame in triggers:
+        for i in range(1, len(frame)):
+            key_item = frame.time[i]
+            print(key_item)
+            j = i - 1
+            while j >= 0 and frame.time[j] > key_item:
+            # Shift the value one position to the left
+            # and reposition j to point to the next element
+            # (from right to left)
+                frame.time[j + 1] = frame.time[j]
+                j -= 1
 
-#we'll run this at the end and it'll return some fun arrays
-#this will include the above functions 
+        # When you finish shifting the elements, you can position
+        # `key_item` in its correct location
+            frame.time[j + 1] = key_item
+
+    return triggers
+"""
+
 def getData():
     frames = []
     infiles = sorted(glob(args.infile))
@@ -168,17 +185,24 @@ def getData():
         modules_div.append(modules)
     #print(modules_div)
 
-    #now that we have some kind of data structure for the modules, lets implement the one function
-    #for i in modules:
-     #   print(modules[i][0])
-        #print(j)
-    triggers = findModuleMultiplicity(modules_div, 10, 2)
+    #now that we have some kind of data structure for the modules, implement the function to find module multiplicities
+
+    triggers = findModuleMultiplicity(modules_div, args.window, args.moduleReq)
+
+
+    test_event = -1
+    print(type(triggers))
+    print(len(triggers[test_event]))
+    print("multiplicity= "+str(triggers[test_event][-1].multiplicity))
+    print("module= "+str(triggers[test_event][-1].module))
+    print("time= "+str(triggers[test_event][-1].time))
+    """
     for i in range(len(triggers)):
         print("multiplicity= "+str(triggers[i].multiplicity))
         print("module= "+str(triggers[i].module))
         print("time= "+str(triggers[i].time))
         print("next")
-
+    """
 
 
 
