@@ -105,7 +105,7 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
                         leadTube = pmt
                         startTime = p.time 
                     print("pulse time is "+str(p.time))
-                    
+
                     if p.time < startTime + timeWindow:
                         mult = mult+ 1
 
@@ -125,10 +125,11 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
             if trigger.multiplicity >= req_mult:
                 #print(trigger.multiplicity)
                 triggers.append(trigger)
-        print("new frame")
         triggers_all_frames.append(triggers)
-    print(len(triggers))
-    return triggers  
+        print("new frame")
+        
+    print(len(triggers_all_frames))
+    return triggers_all_frames  
         
 
 
