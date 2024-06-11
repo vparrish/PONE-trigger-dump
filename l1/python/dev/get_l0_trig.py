@@ -36,10 +36,6 @@ parser.add_argument("-m", "--moduleReq", default=2,
                     help="Minimum number of modules which must have PEs for an event to be considered")
 
 args = parser.parse_args()
-#t = I3Tray()
-#t.context['I3RandomService'] = phys_services.I3GSLRandomService(42)
-#t.Add('I3Reader', FilenameList=args.infile)
-#
 
 @dataclass
 class ModuleTrigger:
@@ -47,44 +43,31 @@ class ModuleTrigger:
         self.module = module
         self.multiplicity = multiplicity
         self.time = time
+def removal(pmts, leadTube):
+    #res = [tuple(ele for ele in sub if ele != leadTube) for sub in pmts]
+    for p in pmts:
+        if p[0] == leadTube:
+            pmts.remove(p)
+    return(pmts)
 
-"""
-this pulseQueue class doesn't actually need to be here
-class PulseQueue:
-    def __init__(self, pulses):
-        self.pulses = pulses
-        self.index = 0
-    
-    def empty(self):
-        return self.index >= len(self.pulses)
-    
-    def next_pulse(self):
-        #if self.empty():
-        #    raise StopIteration("No more pulses")
-        return self.pulses[self.index]
-    
-    def advance(self):
-        while self.index < len(self.pulses):
-            self.index += 1
-            if self.index != len(self.pulses) and self.pulses[self.index].get_charge() >= 0.25:
-                break        
-"""
 
 #make! some! functions! 
 modules = defaultdict(list)
 def findModuleMultiplicity(modules , timeWindow, req_mult):
-    #triggers_all_frames = []
-    #for frame in modules:
+
     triggers = []
+    
     for mk, pmts in modules.items():
         maxMult = 0
         #print("module key is "+str(mk))
         #print("pmts is "+str(pmts))
                 
-                #this for loop gets rid of pulses with charges that are less than 0.25/too small 
+        pmt_list = []      
+        #this for loop gets rid of pulses with charges that are less than 0.25/too small 
         for pmt, pulses, in pmts:
-                #pmt is the pmt, pulses is a pulsequeue list of I3recopulses
-                #this loop gets rid of pulses that are too small- unsure if it works rn and this is something to look at later
+            
+            #pmt is the pmt, pulses is a pulsequeue list of I3recopulses
+            #this loop gets rid of pulses that are too small- unsure if it works rn and this is something to look at later
             for p in pulses:
                 if(p.charge <0.25):
                     print("boo charge too small, removing pulse")
@@ -93,66 +76,70 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
                 if(len(pulses) == 0):
                     pmts.remove(pmt)
                     print("i have removed the pmt, all pulses too small")
-                
+                pmt_list.append(pmt)
+            #print(pmt_list)   
         trigger = ModuleTrigger(mk, 0 ,0)       
-        mult = 0
-                    #print(pmts)
-                #goes thru each pulse and determines if it's the leadtube (has the earliest starttime)
-                #maybe instead of this loop we can just order by time so that then we sequentially got thru and let each pmt
-                #be the lead tube on its own 
-            #leadtube_list = []
-            #leadTube = 999
-        startTime = np.inf 
-        for pmt, pulses in pmts:
-            for p in pulses: 
-                if p.time < startTime:
-                        leadTube = pmt
-                        startTime = p.time 
-                        #print("pulse time is "+str(p.time))
-                #print("leadtube is "+str(leadTube))
-                #print("starttime is now "+str(startTime))
-
-        for pmt, pulses in pmts:
-                #print(pulses)
-            for p in pulses:
-                if p.time < startTime + timeWindow:
-                    #print(startTime)
-                    mult = mult+ 1
-        if mult > trigger.multiplicity:
-            trigger.multiplicity = mult
-            #print("multiplicity = "+str(trigger.multiplicity))
-            trigger.time = startTime
-
-        if trigger.multiplicity >= req_mult:
-                #print(trigger.multiplicity)
-            triggers.append(trigger)
-        #triggers_all_frames.append(triggers)
-        #print("new frame")
+       
+        #print(pmts)
+        #goes thru each pulse and determines if it's the leadtube (has the earliest starttime)
+        
+        while(len(pmts)!= 0):
+            startTime = np.inf 
             
-        #print(len(triggers_all_frames))
+            for pmt, pulses in pmts:
+                    print(len(pmts))
+                    for p in pulses: 
+                        print(p.time)
+                        print(startTime)
+                        if p.time < startTime:
+                                leadTube = pmt
+                                startTime = p.time 
+                                #print("pulse time is "+str(p.time))
+                                print("leadtube is "+str(leadTube))
+                        #leadtube_list.append(leadTube)
+                                print("starttime is now "+str(startTime))
+            mult = 0
+            for pmt, pulses in pmts:
+                    #print(p ulses)
+                pulse_count = 0
+                for p in pulses:
+                    print("length "+str(len(pulses)))
+                    pulse_count +=1
+                    if pulse_count < 2:
+                        if p.time < startTime + timeWindow:
+                            mult +=1 
+                        #add this to prevent double counting for multiple pulses on one pmt? 
+                        
+                    print("mult is "+str(mult))
+                            
+                    
+            if mult > trigger.multiplicity:
+                trigger.multiplicity = mult
+                #print("multiplicity = "+str(trigger.multiplicity))
+                trigger.time = startTime
+            
+            #print(len(pmts))
+            removal(pmts, leadTube)
+            #print(len(pmts))
+            
+        #print("I have exited the while loop")
+        if trigger.multiplicity >= req_mult:
+            triggers.append(trigger)
+        #print("mult is "+str(trigger.multiplicity))
+        #print("mk is "+str(trigger.module))
+        
+    #print("new mk")        
+        
     return triggers  
 
-"""
-#i don;t know if this works
+#function to order triggers by time
+def sortTime(ModuleTrig):
+    return ModuleTrig.time
 def time_order(triggers):
-    for frame in triggers:
-        for i in range(1, len(frame)):
-            key_item = frame.time[i]
-            print(key_item)
-            j = i - 1
-            while j >= 0 and frame.time[j] > key_item:
-            # Shift the value one position to the left
-            # and reposition j to point to the next element
-            # (from right to left)
-                frame.time[j + 1] = frame.time[j]
-                j -= 1
-
-        # When you finish shifting the elements, you can position
-        # `key_item` in its correct location
-            frame.time[j + 1] = key_item
-
+    triggers.sort(key=sortTime)
+    #print(triggers)
     return triggers
-"""
+    
 
 def getData(frame):
     modules = defaultdict(list)
@@ -161,24 +148,34 @@ def getData(frame):
         #create a dictionary with (string, om) as keys and [pmt, pulses] as items
         key = (omkey[0], omkey[1])     
         modules[key].append((omkey[2], p))
-    print(modules)
+    #print(modules)
     triggers = findModuleMultiplicity(modules, args.window, args.moduleReq)
+    #print(len(triggers))
+    #for i in triggers:
+        #print("mult is "+str(i.multiplicity))
+        #print("time is "+str(i.time))
+        #print("mk is "+str(i.module))
+    
+    ordered_triggers = time_order(triggers)
     #print("mult is "+str(triggers[0].multiplicity))
     #print("mk is "+str(triggers[0].module))
     #print("time is "+str(triggers[0].time))
-    print("length is " +str(len(triggers)))
-    for i in triggers:
+    print("length is " +str(len(ordered_triggers)))
+    for i in ordered_triggers:
+        print("mk is "+str(i.module))
         print("mult is "+str(i.multiplicity))
         print("time is "+str(i.time))
-        print("mk is "+str(i.module))
-#
-t = I3Tray()
-i = 0
-for i in range(0,1):
-    t.AddModule("I3Reader", Filename= args.infile)
-    t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
+        
+    print("new frame")
+    #return ordered_triggers
 
-    t.Execute()
-    i +=1
+
+
+#t = I3Tray()
+
+#t.AddModule("I3Reader", Filename= args.infile)
+#t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
+
+#t.Execute()
 
 
