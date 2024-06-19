@@ -3,9 +3,8 @@
 date: 6 March 2024
 author: jmgarriz
 
-Script to retrieve L0 events from simulation. Loose structure based on get_data_tables.py
-script from Jean-Pierre
-
+Script to retrieve L0 events from simulation. 
+!!WORK IN PROGRESS!! 
 '''
 from I3Tray import *
 from icecube import icetray, dataio, dataclasses
@@ -13,31 +12,16 @@ from icecube import phys_services
 from icecube.icetray import I3Units
 
 from glob import glob
-import pandas as pd
 import argparse
 import os
 import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass
+import l1_lc_alg as l1
 
 
 
-#add arguments for input, output, coincidence time window requirements and number of modules to be considered an event
-parser = argparse.ArgumentParser(
-    description="collects all the l0 triggers and outputs to some format not yet determined :)")
-
-parser.add_argument("-i", "--infile", default="/mnt/research/IceCube/PONE/jp_pone_sim/pmtsim/GenerateSingleMuons_39_pmtsim.i3.zst",
-                    help="input .gz files")
-parser.add_argument("-o", "--outfile", default="./out.i3",
-                    help="Write output to OUTFILE (.i3{.gz} format)")
-parser.add_argument("-w", "--window", default=10,#ns
-                    help="length of coincidence time window")
-parser.add_argument("-m", "--moduleReq", default=2,
-                    help="Minimum number of modules which must have PEs for an event to be considered")
-
-args = parser.parse_args()
-
-@dataclass
+@dataclass 
 class ModuleTrigger:
     def __init__(self, module, multiplicity, time):
         self.module = module
@@ -51,8 +35,6 @@ def removal(pmts, leadTube):
     return(pmts)
 
 
-#make! some! functions! 
-modules = defaultdict(list)
 def findModuleMultiplicity(modules , timeWindow, req_mult):
 
     triggers = []
@@ -139,43 +121,4 @@ def time_order(triggers):
     triggers.sort(key=sortTime)
     #print(triggers)
     return triggers
-    
-
-def getData(frame):
-    modules = defaultdict(list)
-    pulsemap = frame['PMTResponse_nonoise']
-    for omkey, p in pulsemap:
-        #create a dictionary with (string, om) as keys and [pmt, pulses] as items
-        key = (omkey[0], omkey[1])     
-        modules[key].append((omkey[2], p))
-    #print(modules)
-    triggers = findModuleMultiplicity(modules, args.window, args.moduleReq)
-    #print(len(triggers))
-    #for i in triggers:
-        #print("mult is "+str(i.multiplicity))
-        #print("time is "+str(i.time))
-        #print("mk is "+str(i.module))
-    
-    ordered_triggers = time_order(triggers)
-    #print("mult is "+str(triggers[0].multiplicity))
-    #print("mk is "+str(triggers[0].module))
-    #print("time is "+str(triggers[0].time))
-    print("length is " +str(len(ordered_triggers)))
-    for i in ordered_triggers:
-        print("mk is "+str(i.module))
-        print("mult is "+str(i.multiplicity))
-        print("time is "+str(i.time))
-        
-    print("new frame")
-    #return ordered_triggers
-
-
-
-#t = I3Tray()
-
-#t.AddModule("I3Reader", Filename= args.infile)
-#t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
-
-#t.Execute()
-
 
