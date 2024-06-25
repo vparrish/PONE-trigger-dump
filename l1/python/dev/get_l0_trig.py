@@ -10,7 +10,7 @@ from I3Tray import *
 from icecube import icetray, dataio, dataclasses
 from icecube import phys_services
 from icecube.icetray import I3Units
-
+from icecube.dataclasses import ModuleKey
 from glob import glob
 import argparse
 import os
@@ -69,30 +69,30 @@ def findModuleMultiplicity(modules , timeWindow, req_mult):
             startTime = np.inf 
             
             for pmt, pulses in pmts:
-                    print(len(pmts))
+                    #print(len(pmts))
                     for p in pulses: 
-                        print(p.time)
-                        print(startTime)
+                        #print(p.time)
+                        #print(startTime)
                         if p.time < startTime:
                                 leadTube = pmt
                                 startTime = p.time 
                                 #print("pulse time is "+str(p.time))
-                                print("leadtube is "+str(leadTube))
+                                #print("leadtube is "+str(leadTube))
                         #leadtube_list.append(leadTube)
-                                print("starttime is now "+str(startTime))
+                                #print("starttime is now "+str(startTime))
             mult = 0
             for pmt, pulses in pmts:
                     #print(p ulses)
                 pulse_count = 0
                 for p in pulses:
-                    print("length "+str(len(pulses)))
+                    #print("length "+str(len(pulses)))
                     pulse_count +=1
                     if pulse_count < 2:
                         if p.time < startTime + timeWindow:
                             mult +=1 
                         #add this to prevent double counting for multiple pulses on one pmt? 
                         
-                    print("mult is "+str(mult))
+                    #print("mult is "+str(mult))
                             
                     
             if mult > trigger.multiplicity:

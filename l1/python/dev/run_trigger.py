@@ -11,7 +11,7 @@ from I3Tray import *
 from icecube import icetray, dataio, dataclasses
 from icecube import phys_services
 from icecube.icetray import I3Units
-
+from icecube.dataclasses import ModuleKey
 from glob import glob
 import argparse
 import os
@@ -40,21 +40,30 @@ args = parser.parse_args()
 #this function actually does all the icetray stuff 
 def getData(frame):
     modules = defaultdict(list)
-    pulsemap = frame['PMTResponse_nonoise']
-    for omkey, p in pulsemap:
+    if frame.Has("PMTResponse_nonoise"):
+        pulsemap = frame['PMTResponse_nonoise']
+        for omkey, p in pulsemap:
         #create a dictionary with (string, om) as keys and [pmt, pulses] as items
-        key = (omkey[0], omkey[1])     
-        modules[key].append((omkey[2], p))
+            key1 = ModuleKey(omkey[0], omkey[1])     
+            modules[key1].append((omkey[2], p))
+            #print(type(key1))
+    #print(frame)
+    #this might be inefficient and getting the geometry more times than necessary 
+    if frame.Has("I3Geometry"):
+        geometry = frame["I3Geometry"].omgeo
+       #print(geometry)
+        print("I got a geometry")
     
     #gather L0 triggers
     triggers = l0.findModuleMultiplicity(modules, args.window, args.moduleReq)
     #time order triggers
     ordered_triggers = l0.time_order(triggers)
-    for i in ordered_triggers:
-        print(i.multiplicity)
-    test = l1.LC_reco_events(frame, ordered_triggers)
-    
-    
+    #for i in ordered_triggers:
+        #print(i.multiplicity)
+    test = l1.LC_reco_events(geometry, ordered_triggers)
+    #print(test)
+
+  
     
 
 t = I3Tray()
@@ -62,4 +71,5 @@ t = I3Tray()
 t.AddModule("I3Reader", FilenameList=[args.geo, args.infile])
 t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
 
-t.Execute(10)
+
+t.Execute(6)

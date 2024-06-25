@@ -13,6 +13,7 @@ import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass
 import math
+from icecube.dataclasses import ModuleKey
 
 from I3Tray import *
 from icecube import icetray, dataio, dataclasses
@@ -89,15 +90,18 @@ def dist(x_t, y_t, z_t, x_m, y_m, z_m):
     return mag
 
 
-def LC_reco_events(frame, triggers):
+def LC_reco_events(geometry, triggers):
     #insert something to go thru all triggers and then find distance between the trigger pulse and the 
-    #every optical module 
-    key = frame["I3OMGeoMap"]
+    #every optical module
     neighbors = []
-    for i in triggers:
-        for j in key:
-            t = i.module
-            print(t)
+    for omkey, pos in geometry:
+        for t in triggers:
+            p = t.module
+            print(geometry[p].position)
+        #print(geometry.omgeo[omkey].position)
+        #print(type(mk))
+        #print(mk.position)
+
             #distance = dist(t.pos.x, t.pos.y, t.pos.z, j.pos.x, j.pos.y, j.pos.z)
             #print(distance)
             #compute distance here- if same module skip 
