@@ -43,32 +43,36 @@ class LC_event:
         self.negWindow = negWindow
         self.trigModule = trigModule
 
+class trig_geo:
+    def __init__(self, mk, geo, time):
+        self.mk = mk
+        self.geo = geo
+        self.time = time
+                 
 
 #initial start on implementing light cone algorithm function
 #made to be independent of icetray stuff and just take already calculated distance and time
 #untested atm
-def light_cone(dist, t_initial):
+def light_cone(dist, t_initial, d_max):
     #define constant variables 
     c = 0.299792458 #m/ns
     n = 1.34 #index of refraction
     d_atten = 25 #m, not sure what this exactly is 
     theta_c = 40.5 #degrees?, not really sure what value this is
-    d_max = 500 #m, we need some maximum distance at which we just won't even bother calculating
+   
 
     #lower limit
-    if dist > d_max:
-        return 0
+    
+    small_dist_lim = 2*d_atten*math.sin(math.radians(theta_c)) 
+    if dist < small_dist_lim:
+        tmin = 0
+    elif dist >= small_dist_lim:
+        tmin_int = (1/c)*np.sqrt(dist**2 - small_dist_lim**2)
+        tmin_large = (d_atten/c)*((1/n) + np.sqrt((dist/d_atten)**2 - math.sin(math.radians(theta_c))**2) -n)
+    if tmin_int < tmin_large:
+        tmin = tmin_int
     else:
-        small_dist_lim = 2*d_atten*math.sin(math.radians(theta_c)) 
-        if dist < small_dist_lim:
-            tmin = 0
-        elif dist >= small_dist_lim:
-            tmin_int = (1/c)*np.sqrt(dist**2 - small_dist_lim**2)
-            tmin_large = (d_atten/c)*((1/n) + np.sqrt((dist/d_atten)**2 - math.sin(math.radians(theta_c))**2) -n)
-        if tmin_int < tmin_large:
-            tmin = tmin_int
-        else:
-            tmin = tmin_large
+        tmin = tmin_large
     #upper limit
             
     tmax = (n*dist)/c
@@ -77,15 +81,15 @@ def light_cone(dist, t_initial):
     elif dist < d_max:
         tmax = (d_atten/c)*np.sqrt((dist/d_atten)**2 - math.sin(math.radians(theta_c))**2 - (1/n) +n)
 
-    #positive and negative time windows
-    
+        #positive and negative time windows
+        
     tw_p = [t_initial + tmin, t_initial +tmax]
     tw_n = [t_initial -  tmin, t_initial - tmax]
 
     time_windows = [tw_p, tw_n]
     return time_windows
 
-def dist(x_t, y_t, z_t, x_m, y_m, z_m):
+def distance(x_t, y_t, z_t, x_m, y_m, z_m):
     mag = np.sqrt((x_t-x_m)**2 + (y_t-y_m)**2 + (z_t-z_m)**2)
     return mag
 
@@ -93,18 +97,43 @@ def dist(x_t, y_t, z_t, x_m, y_m, z_m):
 def LC_reco_events(geometry, triggers):
     #insert something to go thru all triggers and then find distance between the trigger pulse and the 
     #every optical module
+    d_max = 500
     neighbors = []
-    for omkey, pos in geometry:
-        for t in triggers:
-            p = t.module
-            print(geometry[p].position)
-        #print(geometry.omgeo[omkey].position)
-        #print(type(mk))
-        #print(mk.position)
+    trigger_geometries = []
+    for t in triggers:
+        p = t.module
+        for omkey, pos in geometry:
+            mk = ModuleKey(omkey[0], omkey[1])
+            if mk == p:
+                t_geo = trig_geo(mk, pos, t.time)
+                trigger_geometries.append(t_geo)
+    #this temp thing is here so that we don't repeat the distance calculation for every pmt on same module
+    temp = ModuleKey(999,999)
+    for t in trigger_geometries:
+        for omkey, pos in geometry:
+            mk = ModuleKey(omkey[0], omkey[1])
+            if mk == t.mk:
+                #print("got the same modules")
+                continue
+            elif mk != temp:
+                #print(temp.om)
+                t_x = t.geo.position.x
+                t_y = t.geo.position.y
+                t_z = t.geo.position.z
+                m_x = pos.position.x
+                m_y = pos.position.y
+                m_z = pos.position.z
+                dist = distance(t_x, t_y, t_z, m_x, m_y, m_z)
+                #print(dist)
+                if dist <= d_max:
+                    lc = light_cone(dist, t.time, d_max)
+                    #so this is printing some kinds of time windows now....
+                    #unsure if they are correct or not and what format we want them in tbh
+                    print(lc)
+                    
+            temp = ModuleKey(omkey[0], omkey[1])
 
-            #distance = dist(t.pos.x, t.pos.y, t.pos.z, j.pos.x, j.pos.y, j.pos.z)
-            #print(distance)
-            #compute distance here- if same module skip 
+    
             #perform LC alg based on distance and time of the trigger pulse 
             #if LC function does not result in return zero, add to LC_event 
             #append LC_events to a neighbors list per moduletrigger 

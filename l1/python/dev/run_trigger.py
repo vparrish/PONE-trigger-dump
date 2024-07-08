@@ -46,12 +46,12 @@ def getData(frame):
         #create a dictionary with (string, om) as keys and [pmt, pulses] as items
             key1 = ModuleKey(omkey[0], omkey[1])     
             modules[key1].append((omkey[2], p))
-            #print(type(key1))
+            #print(p.position)
     #print(frame)
     #this might be inefficient and getting the geometry more times than necessary 
     if frame.Has("I3Geometry"):
         geometry = frame["I3Geometry"].omgeo
-       #print(geometry)
+        #print(type(geometry))
         print("I got a geometry")
     
     #gather L0 triggers
