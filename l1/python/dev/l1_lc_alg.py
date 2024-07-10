@@ -148,23 +148,23 @@ def LC_reco_events(geometry, triggers):
     return neighbors, light_cone_df
 
 def plotlc(light_cone_df):
-    light_cone_df = light_cone_df.sample(frac=0.1, random_state=1)
+    # Sample 1% of the data
+    light_cone_sampled = light_cone_df.sample(frac=1)
+
     # Extracting central values and bounds for tw_p
-    tw_p_central = light_cone_df['tw_p_central']
-    # Setting bounds as error
-    tw_p_bounds = np.array(light_cone_df['tw_p_bounds'].tolist())
+    tw_p_central = light_cone_sampled['tw_p_central']
+    tw_p_bounds = np.array(light_cone_sampled['tw_p_bounds'].tolist())
     tw_p_errors = [abs(tw_p_bounds[:, 0]), abs(tw_p_bounds[:, 1])]
 
-    # Extracting central values and bounds for tw_n
-    tw_n_central = light_cone_df['tw_n_central']
-    tw_n_bounds = np.array(light_cone_df['tw_n_bounds'].tolist())
+    # Extracting central values and bounds for tw_n 
+    tw_n_central = light_cone_sampled['tw_n_central']
+    tw_n_bounds = np.array(light_cone_sampled['tw_n_bounds'].tolist())
     tw_n_errors = [abs(tw_n_bounds[:, 0]), abs(tw_n_bounds[:, 1])]
 
     # Creating subplots
     fig, axs = plt.subplots(2, 1, figsize=(10, 12))  # 2 Rows, 1 Column
 
-    # Plotting tw_p vs distance with error bars
-    axs[0].errorbar(light_cone_df['distance'], tw_p_central, yerr=tw_p_errors, fmt='o', alpha=0.5, label='central tw pos', ecolor='lightgray', elinewidth=3, capsize=0)
+    axs[0].errorbar(light_cone_sampled['distance'], tw_p_central, yerr=tw_p_errors, fmt='o', alpha=0.5, label='central tw pos', ecolor='lightgray', elinewidth=3, capsize=0)
     axs[0].set_title('Time Window Positive')
     axs[0].set_xlabel('Module separation')
     axs[0].set_ylabel('Positive time delay')
@@ -172,8 +172,7 @@ def plotlc(light_cone_df):
     axs[0].grid(True)
     axs[0].legend()
 
-    # Plotting tw_n vs distance with error bars
-    axs[1].errorbar(light_cone_df['distance'], tw_n_central, yerr=tw_n_errors, fmt='o', alpha=0.5, color='red', label='central tw neg', ecolor='lightgray', elinewidth=3, capsize=0)
+    axs[1].errorbar(light_cone_sampled['distance'], tw_n_central, yerr=tw_n_errors, fmt='o', alpha=0.5, color='red', label='central tw neg', ecolor='lightgray', elinewidth=3, capsize=0)
     axs[1].set_title('Time Window Negative')
     axs[1].set_xlabel('Module separation')
     axs[1].set_ylabel('Negative time delay')
