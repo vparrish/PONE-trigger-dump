@@ -53,46 +53,55 @@ class trig_geo:
 
 #initial start on implementing light cone algorithm function
 #made to be independent of icetray stuff and just take already calculated distance and time
-#untested atm
-def light_cone(dist, t_initial, d_max):
+#this LC algorithm now matches LC alg we've been referencing 
+def light_cone(dist, t_initial):
     #define constant variables 
     c = 0.299792458 #m/ns
     n = 1.34 #index of refraction
-    d_atten = 25 #m, not sure what this exactly is 
-    theta_c = 40.5 #degrees?, not really sure what value this is
+    d_atten = 80.5 #m, not sure what this exactly is
+    theta_c = math.acos(1/n) #radians, not really sure what value this is
    
 
     #lower limit
     
-    small_dist_lim = 2*d_atten*math.sin(math.radians(theta_c)) 
+    small_dist_lim = 2*d_atten*math.sin(theta_c) 
     if dist < small_dist_lim:
         tmin = 0
     elif dist >= small_dist_lim:
         tmin_int = (1/c)*np.sqrt(dist**2 - small_dist_lim**2)
-        tmin_large = (d_atten/c)*((1/n) + np.sqrt((dist/d_atten)**2 - math.sin(math.radians(theta_c))**2) -n)
-    if tmin_int < tmin_large:
-        tmin = tmin_int
-    else:
-        tmin = tmin_large
+        #print(tmin_int)
+        tmin_large = (d_atten/c)*((1/n) + np.sqrt((dist/d_atten)**2 - math.sin(theta_c)**2) -n)
+        #print(tmin_large)
+        if tmin_int < tmin_large:
+            tmin = tmin_int
+            #print("intermediate")
+        else:
+            tmin = tmin_large
+            #print("large")
     #upper limit
             
     tmax = (n*dist)/c
-    if dist <= (tmax*c)/n:
+    if dist <= d_atten:
         tmax =(n*dist)/c
-    elif dist < d_max:
-        tmax = (d_atten/c)*np.sqrt((dist/d_atten)**2 - math.sin(math.radians(theta_c))**2 - (1/n) +n)
+    else:
+        tmax = (d_atten/c)*(np.sqrt((dist/d_atten)**2 - math.sin(theta_c)**2) - (1/n) +n)
 
         #positive and negative time windows
         
-    tw_p_bounds = [t_initial + tmin, t_initial +tmax]
-    tw_n_bounds = [t_initial -  tmin, t_initial - tmax]
+    #tw_p_bounds = [t_initial + tmin, t_initial +tmax]
+    #tw_n_bounds = [t_initial -  tmin, t_initial - tmax]
 
-    tw_p_central = (tw_p_bounds[0] + tw_p_bounds[1])/2
-    tw_n_central = (tw_n_bounds[0] + tw_n_bounds[1])/2
-    time_windows = [tw_p_bounds, tw_n_bounds]
+    #tw_p_central = (tw_p_bounds[0] + tw_p_bounds[1])/2
+    #tw_n_central = (tw_n_bounds[0] + tw_n_bounds[1])/2
+    #time_windows = [tw_p_bounds, tw_n_bounds]
+    pos_max =  t_initial + tmax
+    pos_min = t_initial + tmin
+    neg_max = t_initial - tmax
+    neg_min = t_initial -  tmin
 
-    return tw_p_central, tw_n_central, tw_p_bounds, tw_n_bounds
-
+    #returns 4 values for the pos/neg max/min values of the windows
+    return pos_max, pos_min, neg_max, neg_min
+    
 def distance(x_t, y_t, z_t, x_m, y_m, z_m):
     mag = np.sqrt((x_t-x_m)**2 + (y_t-y_m)**2 + (z_t-z_m)**2)
     return mag
@@ -131,26 +140,33 @@ def LC_reco_events(geometry, triggers):
                 dist = distance(t_x, t_y, t_z, m_x, m_y, m_z)
                 #print(dist)
                 if dist <= d_max:
-                    tw_p_central, tw_n_central, tw_p_bounds, tw_n_bounds = light_cone(dist, t.time, d_max)
+                    pos_max, pos_min, neg_max, neg_min = light_cone(dist, t.time)
                     #so this is printing some kinds of time windows now....
                     #unsure if they are correct or not and what format we want them in tbh
                     # print(lc)
-                    light_cone_data.append((tw_p_central, tw_n_central, tw_p_bounds, tw_n_bounds, dist, t.time))
+                    light_cone_data.append((pos_max, pos_min, neg_max, neg_min, dist, t.time))
                     
             temp = ModuleKey(omkey[0], omkey[1])
 
     
             #perform LC alg based on distance and time of the trigger pulse 
             #if LC function does not result in return zero, add to LC_event 
-            #append LC_events to a neighbors list per moduletrigger 
-            #print('placeholder so vscode stops giving me issues') 
-    light_cone_df = pd.DataFrame(light_cone_data, columns=['tw_p_central', 'tw_n_central', 'tw_p_bounds', 'tw_n_bounds', 'distance', 'time'])
+            #append LC_events to a neighbors list per moduletrigger  
+    light_cone_df = pd.DataFrame(light_cone_data, columns=['pos_max', 'pos_min', 'neg_max', 'neg_min', 'distance', 'time'])
     return neighbors, light_cone_df
 
 def plotlc(light_cone_df):
     # Sample 1% of the data
     light_cone_sampled = light_cone_df.sample(frac=1)
 
+    pos_max = light_cone_sampled['pos_max']
+    pos_min = light_cone_sampled['pos_min']
+    neg_max = light_cone_sampled['neg_max']
+    neg_min = light_cone_sampled['neg_min']
+    dist = light_cone_sampled['distance']
+    time = light_cone_sampled['time']
+
+    """
     # Extracting central values and bounds for tw_p
     tw_p_central = light_cone_sampled['tw_p_central']
     tw_p_bounds = np.array(light_cone_sampled['tw_p_bounds'].tolist())
@@ -160,30 +176,44 @@ def plotlc(light_cone_df):
     tw_n_central = light_cone_sampled['tw_n_central']
     tw_n_bounds = np.array(light_cone_sampled['tw_n_bounds'].tolist())
     tw_n_errors = [abs(tw_n_bounds[:, 0]), abs(tw_n_bounds[:, 1])]
-
+    """
     # Creating subplots
     fig, axs = plt.subplots(2, 1, figsize=(10, 12))  # 2 Rows, 1 Column
 
-    axs[0].errorbar(light_cone_sampled['distance'], tw_p_central, yerr=tw_p_errors, fmt='o', alpha=0.5, label='central tw pos', ecolor='lightgray', elinewidth=3, capsize=0)
+    axs[0].scatter(dist, pos_max, marker='.', alpha=0.5, label='positive max', color = "teal")
+    axs[0].scatter(dist, pos_min, marker='.', alpha=0.5, label='positive min', color  = "deeppink")
     axs[0].set_title('Time Window Positive')
     axs[0].set_xlabel('Module separation')
     axs[0].set_ylabel('Positive time delay')
-    axs[0].set_xscale('log')
+    #axs[0].set_xscale('log')
     axs[0].grid(True)
     axs[0].legend()
 
-    axs[1].errorbar(light_cone_sampled['distance'], tw_n_central, yerr=tw_n_errors, fmt='o', alpha=0.5, color='red', label='central tw neg', ecolor='lightgray', elinewidth=3, capsize=0)
+    axs[1].scatter(dist, neg_max, marker='.', alpha=0.5, label='negative max', color= "teal")
+    axs[1].scatter(dist, neg_min, marker='.', alpha=0.5, label='negative min', color = "deeppink")
     axs[1].set_title('Time Window Negative')
     axs[1].set_xlabel('Module separation')
     axs[1].set_ylabel('Negative time delay')
-    axs[1].set_xscale('log')
+    #axs[1].set_xscale('log')
     axs[1].grid(True)
     axs[1].legend()
 
     plt.tight_layout()  # Adjust layout to not overlap
-    plt.show()
+    plt.savefig("lc_alg_plt.png")
+"""
+def plot_guidelines():
+    d = np.linspace(0, 400, 1000)
+    p_max = []
+    p_min = []
+    for i in d:
+        tw_p_bounds, tw_n_bounds = light_cone(i, 0)
+        p_max.append(tw_p_bounds[1])
+        p_min.append(tw_p_bounds[0])
 
-
+plt.plot(d, p_max)
+plt.plot(d, p_min)
+plt.savefig("test.png")
+"""
 def eventClustering(neighbors):
     potential_events= []
     #perform operation to combine time windows and modules. this might be its own function this will be an annoying function to write :) 

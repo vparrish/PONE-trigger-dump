@@ -33,7 +33,7 @@ parser.add_argument("-w", "--window", default=10,#ns
                     help="length of coincidence time window")
 parser.add_argument("-m", "--moduleReq", default=2,
                     help="Minimum number of modules which must have PEs for an event to be considered")
-parser.add_argument("-g", "--geo", default="/home/victoria/work/pone/samples/PONE_10String_7Cluster_standard_GCD.i3.gz",
+parser.add_argument("-g", "--geo", default="/mnt/research/IceCube/PONE/jp_pone_sim/PONE_10String_7Cluster_standard_GCD.i3.gz",
                     help="I3 file containing the geometry of the simulation")
 args = parser.parse_args()
 
@@ -73,4 +73,4 @@ t.AddModule("I3Reader", FilenameList=[args.geo, args.infile])
 t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
 
 
-t.Execute(6)
+t.Execute(12)
