@@ -9,7 +9,7 @@ d = np.linspace(0, 400, 1000)
 p_max = []
 p_min = []
 for i in d:
-    pos_max, pos_min, neg_max, neg_min = l1.light_cone(i, 0)
+    pos_max, pos_min, neg_max, neg_min = l1.light_cone(i)
     p_max.append(pos_max)
     p_min.append(pos_min)
 

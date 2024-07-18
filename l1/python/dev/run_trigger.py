@@ -73,4 +73,4 @@ t.AddModule("I3Reader", FilenameList=[args.geo, args.infile])
 t.AddModule(getData, "getData", Streams = [icetray.I3Frame.DAQ])
 
 
-t.Execute(12)
+t.Execute(6)

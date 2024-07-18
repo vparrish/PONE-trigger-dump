@@ -54,7 +54,7 @@ class trig_geo:
 #initial start on implementing light cone algorithm function
 #made to be independent of icetray stuff and just take already calculated distance and time
 #this LC algorithm now matches LC alg we've been referencing 
-def light_cone(dist, t_initial):
+def light_cone(dist):
     #define constant variables 
     c = 0.299792458 #m/ns
     n = 1.34 #index of refraction
@@ -94,10 +94,10 @@ def light_cone(dist, t_initial):
     #tw_p_central = (tw_p_bounds[0] + tw_p_bounds[1])/2
     #tw_n_central = (tw_n_bounds[0] + tw_n_bounds[1])/2
     #time_windows = [tw_p_bounds, tw_n_bounds]
-    pos_max =  t_initial + tmax
-    pos_min = t_initial + tmin
-    neg_max = t_initial - tmax
-    neg_min = t_initial -  tmin
+    pos_max =  tmax
+    pos_min = tmin
+    neg_max = -tmax
+    neg_min = -tmin
 
     #returns 4 values for the pos/neg max/min values of the windows
     return pos_max, pos_min, neg_max, neg_min
@@ -140,7 +140,7 @@ def LC_reco_events(geometry, triggers):
                 dist = distance(t_x, t_y, t_z, m_x, m_y, m_z)
                 #print(dist)
                 if dist <= d_max:
-                    pos_max, pos_min, neg_max, neg_min = light_cone(dist, t.time)
+                    pos_max, pos_min, neg_max, neg_min = light_cone(dist)
                     #so this is printing some kinds of time windows now....
                     #unsure if they are correct or not and what format we want them in tbh
                     # print(lc)
