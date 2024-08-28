@@ -86,18 +86,10 @@ def light_cone(dist):
     else:
         tmax = (d_atten/c)*(np.sqrt((dist/d_atten)**2 - math.sin(theta_c)**2) - (1/n) +n)
 
-        #positive and negative time windows
-        
-    #tw_p_bounds = [t_initial + tmin, t_initial +tmax]
-    #tw_n_bounds = [t_initial -  tmin, t_initial - tmax]
-
-    #tw_p_central = (tw_p_bounds[0] + tw_p_bounds[1])/2
-    #tw_n_central = (tw_n_bounds[0] + tw_n_bounds[1])/2
-    #time_windows = [tw_p_bounds, tw_n_bounds]
     pos_max =  tmax
     pos_min = tmin
-    neg_max = -tmax
-    neg_min = -tmin
+    neg_max = -tmin
+    neg_min = -tmax
 
     #returns 4 values for the pos/neg max/min values of the windows
     return pos_max, pos_min, neg_max, neg_min
@@ -107,11 +99,10 @@ def distance(x_t, y_t, z_t, x_m, y_m, z_m):
     return mag
 
 
-def LC_reco_events(geometry, triggers):
+def LC_reco_events(geometry, triggers, max_dist):
     #insert something to go thru all triggers and then find distance between the trigger pulse and the 
     #every optical module
-    d_max = 500
-    neighbors = []
+    d_max = max_dist
     trigger_geometries = []
     for t in triggers:
         p = t.module
@@ -141,19 +132,32 @@ def LC_reco_events(geometry, triggers):
                 #print(dist)
                 if dist <= d_max:
                     pos_max, pos_min, neg_max, neg_min = light_cone(dist)
-                    #so this is printing some kinds of time windows now....
-                    #unsure if they are correct or not and what format we want them in tbh
-                    # print(lc)
-                    light_cone_data.append((pos_max, pos_min, neg_max, neg_min, dist, t.time))
+                    
+                    #add something in here to then from those time windows and the module distances, see if there is a pulse we want to look at ? 
+                    pos_tw = [t.time+pos_min, t.time+pos_max]
+                    neg_tw = [t.time - neg_min, t.time - neg_max]
+                    
+
+                    #include the omkey of the neighbor module so that we can then determine what omkeys and time windows to search from the pmtresponse no noise frame
+                    light_cone_data.append((pos_max, pos_min, neg_max, neg_min, dist, t.time, omkey))
                     
             temp = ModuleKey(omkey[0], omkey[1])
+    light_cone_df = pd.DataFrame(light_cone_data, columns=['pos_max', 'pos_min', 'neg_max', 'neg_min', 'distance', 'time', 'omkey'])
+    return light_cone_df
+
+def reduce_windows(light_cone_sampled):
+    #this function will go thru and select which time windows for which omkeys we should search so we can avoid duplicate searches 
+    pos_max = light_cone_sampled['pos_max']
+    pos_min = light_cone_sampled['pos_min']
+    neg_max = light_cone_sampled['neg_max']
+    neg_min = light_cone_sampled['neg_min']
+    dist = light_cone_sampled['distance']
+    time = light_cone_sampled['time']
+    omkey = light_cone_sampled['omkey']
 
     
-            #perform LC alg based on distance and time of the trigger pulse 
-            #if LC function does not result in return zero, add to LC_event 
-            #append LC_events to a neighbors list per moduletrigger  
-    light_cone_df = pd.DataFrame(light_cone_data, columns=['pos_max', 'pos_min', 'neg_max', 'neg_min', 'distance', 'time'])
-    return neighbors, light_cone_df
+    #for i in range(len(omkey)):
+    
 
 def plotlc(light_cone_df):
     # Sample 1% of the data
@@ -166,17 +170,6 @@ def plotlc(light_cone_df):
     dist = light_cone_sampled['distance']
     time = light_cone_sampled['time']
 
-    """
-    # Extracting central values and bounds for tw_p
-    tw_p_central = light_cone_sampled['tw_p_central']
-    tw_p_bounds = np.array(light_cone_sampled['tw_p_bounds'].tolist())
-    tw_p_errors = [abs(tw_p_bounds[:, 0]), abs(tw_p_bounds[:, 1])]
-
-    # Extracting central values and bounds for tw_n 
-    tw_n_central = light_cone_sampled['tw_n_central']
-    tw_n_bounds = np.array(light_cone_sampled['tw_n_bounds'].tolist())
-    tw_n_errors = [abs(tw_n_bounds[:, 0]), abs(tw_n_bounds[:, 1])]
-    """
     # Creating subplots
     fig, axs = plt.subplots(2, 1, figsize=(10, 12))  # 2 Rows, 1 Column
 
@@ -200,20 +193,8 @@ def plotlc(light_cone_df):
 
     plt.tight_layout()  # Adjust layout to not overlap
     plt.savefig("lc_alg_plt.png")
-"""
-def plot_guidelines():
-    d = np.linspace(0, 400, 1000)
-    p_max = []
-    p_min = []
-    for i in d:
-        tw_p_bounds, tw_n_bounds = light_cone(i, 0)
-        p_max.append(tw_p_bounds[1])
-        p_min.append(tw_p_bounds[0])
 
-plt.plot(d, p_max)
-plt.plot(d, p_min)
-plt.savefig("test.png")
-"""
+
 def eventClustering(neighbors):
     potential_events= []
     #perform operation to combine time windows and modules. this might be its own function this will be an annoying function to write :) 

@@ -60,7 +60,8 @@ def getData(frame):
     ordered_triggers = l0.time_order(triggers)
     #for i in ordered_triggers:
         #print(i.multiplicity)
-    test,light_cone_df = l1.LC_reco_events(geometry, ordered_triggers)
+    #this only returns the last frame's light cone dataframe atm
+    light_cone_df = l1.LC_reco_events(geometry, ordered_triggers, 500)
     l1.plotlc(light_cone_df)
     #print(test)
 
