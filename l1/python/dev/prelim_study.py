@@ -10,6 +10,7 @@ from icecube import phys_services
 from icecube.icetray import I3Units
 import pandas as pd
 import argparse
+import time
 
 parser = argparse.ArgumentParser(
     description="collects all the l0 triggers and outputs to some format not yet determined :)")
@@ -74,7 +75,8 @@ def merge_overlap(arr):
     return res_idx + 1
 
 
-def remove_duplicates(geometry,max_dist, rate):
+def remove_duplicates(geometry,max_dist):
+    #this will need to be changed eventually and I don't know if this function is relevant rn
     #sample trigger 
     triggers = []
     t = l0.ModuleTrigger(ModuleKey(1, 1), 3, 0)
@@ -99,12 +101,46 @@ def remove_duplicates(geometry,max_dist, rate):
     for i in range(new_size_neg):
         print(f"[{neg_arr[i][0]}, {neg_arr[i][1]}]", end=" ")
 
+def determine_call_count(geometry, max_dist, rate):
+    #rate is in Hz
+    #times are in ns > need to multiply these by 1E-9 to convert to s
+    t1 = time.time()
+    call_num_arr = []
+    string_nos = []
+    om_nos = []
+    data = []
+    for i in range(1, 71):
+        triggers = []
+        t = l0.ModuleTrigger(ModuleKey(i, 10), 3, 0)
+        triggers.append(t)
+        data_frame = l1.LC_reco_events(geometry, triggers, max_dist)
+        pos_max = data_frame['pos_max']
+        pos_min = data_frame['pos_min']
+        calls = 0
+        for k in range(len(pos_max)):
+            #multiply by 2 bc we also have the same negative time windows
+            calls += ((pos_max[k] - pos_min[k])*1E-9)*rate*2
+        #call_num_arr.append(calls)
+        #string_nos.append(i)
+        #om_nos.append(int(10))
+        data.append((calls, i, int(10)))
+    hist_dataframe = pd.DataFrame(data, columns = ["call_num", "string_num", "om_num"])
+    t2 = time.time()
+    print(t2-t1) 
+   
+    return hist_dataframe
 
+        
 
 def run_study(frame):
     if frame.Has("I3Geometry"):
         geometry = frame["I3Geometry"].omgeo
-    remove_duplicates(geometry, 100, 2000)
+    df = determine_call_count(geometry, 500, 10000)
+    df.to_pickle("calls_df.pkl")
+
+    
+
+
 
 
 t = I3Tray()
